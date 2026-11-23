@@ -1,0 +1,6 @@
+{
+  "name": "AirWise AI – Urban Air Quality Intelligence",
+  "description": "Real-time urban air quality monitoring, 24-hour pollution forecasting, interactive spatial mapping, deterministic health guidance, and Gemini-powered contextual recommendations.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

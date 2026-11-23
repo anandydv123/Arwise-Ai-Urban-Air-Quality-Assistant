@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <script>
+      (function () {
+        try {
+          var desc = Object.getOwnPropertyDescriptor(window, 'fetch');
+          if (desc && desc.get && !desc.set && desc.configurable) {
+            var originalGet = desc.get;
+            var overrideFetch;
+            Object.defineProperty(window, 'fetch', {
+              configurable: true,
+              enumerable: desc.enumerable !== false,
+              get: function () {
+                return overrideFetch || originalGet.call(window);
+              },
+              set: function (fn) {
+                if (typeof fn === 'function') {
+                  overrideFetch = fn;
+                }
+              },
+            });
+          }
+        } catch (_) {}
+
+        function isExtFetchErr(filename, message, stack) {
+          var f = typeof filename === 'string' ? filename : '';
+          var m = typeof message === 'string' ? message : '';
+          var s = typeof stack === 'string' ? stack : '';
+          var isExt =
+            f.indexOf('chrome-extension://') === 0 ||
+            f.indexOf('moz-extension://') === 0 ||
+            s.indexOf('chrome-extension://') !== -1 ||
+            s.indexOf('moz-extension://') !== -1;
+          return (
+            isExt &&
+            (m.indexOf('Cannot set property fetch') !== -1 ||
+              f.indexOf('/scripts/inspector.js') !== -1 ||
+              s.indexOf('/scripts/inspector.js') !== -1)
+          );
+        }
+
+        if (!window.__AIRWISE_EXT_GUARD__) {
+          window.__AIRWISE_EXT_GUARD__ = true;
+          window.addEventListener(
+            'error',
+            function (e) {
+              var stack = e && e.error && e.error.stack;
+              if (isExtFetchErr(e && e.filename, e && e.message, stack)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+              }
+            },
+            true
+          );
+          window.addEventListener(
+            'unhandledrejection',
+            function (e) {
+              var r = e && e.reason;
+              if (isExtFetchErr('', r && r.message, r && r.stack)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+              }
+            },
+            true
+          );
+        }
+      })();
+    </script>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AirWise AI – Urban Air Quality Intelligence</title>
+    <meta
+      name="description"
+      content="Monitor real-time urban air quality, inspect pollutant concentrations and 24-hour forecasts, and receive personalized outdoor health guidance."
+    />
+    <meta property="og:title" content="AirWise AI – Urban Air Quality Intelligence" />
+    <meta
+      property="og:description"
+      content="Monitor real-time urban air quality, inspect pollutant concentrations and 24-hour forecasts, and receive personalized outdoor health guidance."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=IBM+Plex+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body class="bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
