@@ -5,6 +5,65 @@ import { useAppContext } from '../contexts/AppContext.tsx';
 import { classifyAqi, getCategoryLegend } from '../utils/aqi.ts';
 import { LocationControls } from './LocationControls.tsx';
 
+function createAqiMarkerIcon(hexColor: string, labelText: string): L.DivIcon {
+  const badge = document.createElement('div');
+  badge.style.background = hexColor;
+  badge.style.color = '#ffffff';
+  badge.style.border = '2px solid #ffffff';
+  badge.style.borderRadius = '9999px';
+  badge.style.width = '44px';
+  badge.style.height = '44px';
+  badge.style.display = 'flex';
+  badge.style.alignItems = 'center';
+  badge.style.justifyContent = 'center';
+  badge.style.fontFamily = "'IBM Plex Mono', monospace";
+  badge.style.fontWeight = '700';
+  badge.style.fontSize = '13px';
+  badge.style.boxShadow = '0 2px 8px rgba(15,23,42,0.35)';
+  badge.textContent = labelText;
+
+  return L.divIcon({
+    className: 'airwise-map-marker',
+    html: badge,
+    iconSize: [44, 44],
+    iconAnchor: [22, 22],
+  });
+}
+
+function createMapPopupElement(
+  locationName: string,
+  indexLabel: string,
+  aqiLabel: string,
+  categoryLabel: string,
+  pm25Value: number | null | undefined
+): HTMLElement {
+  const container = document.createElement('div');
+  container.style.fontFamily = 'sans-serif';
+  container.style.minWidth = '170px';
+
+  const title = document.createElement('strong');
+  title.textContent = locationName;
+  container.appendChild(title);
+  container.appendChild(document.createElement('br'));
+
+  const indexRow = document.createElement('span');
+  indexRow.append(`${indexLabel}: `);
+  const indexStrong = document.createElement('strong');
+  indexStrong.textContent = aqiLabel;
+  indexRow.appendChild(indexStrong);
+  indexRow.append(` (${categoryLabel})`);
+  container.appendChild(indexRow);
+  container.appendChild(document.createElement('br'));
+
+  const pmRow = document.createElement('span');
+  pmRow.style.fontSize = '11px';
+  pmRow.style.color = '#475569';
+  pmRow.textContent = `PM2.5: ${pm25Value ?? '—'} µg/m³`;
+  container.appendChild(pmRow);
+
+  return container;
+}
+
 export function AirQualityMapView() {
   const { location, dataset, aqiStandard, selectCoordinates, loading } = useAppContext();
   const mapContainerRef = useRef<HTMLDivElement>(null);
@@ -12,6 +71,7 @@ export function AirQualityMapView() {
   const markerRef = useRef<L.Marker | null>(null);
   const circleRef = useRef<L.Circle | null>(null);
   const selectCoordinatesRef = useRef(selectCoordinates);
+  const initialCenterRef = useRef<[number, number]>([location.latitude, location.longitude]);
 
   useEffect(() => {
     selectCoordinatesRef.current = selectCoordinates;
@@ -31,7 +91,7 @@ export function AirQualityMapView() {
     if (!mapContainerRef.current || mapInstanceRef.current) return;
 
     const map = L.map(mapContainerRef.current, {
-      center: [location.latitude, location.longitude],
+      center: initialCenterRef.current,
       zoom: 11,
       zoomControl: true,
     });
@@ -53,7 +113,6 @@ export function AirQualityMapView() {
       markerRef.current = null;
       circleRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync marker, AQI radius ring, and map viewport when location or AQI updates
@@ -65,12 +124,7 @@ export function AirQualityMapView() {
     map.setView(latLng, Math.max(map.getZoom(), 10), { animate: true });
 
     const labelText = activeAqi !== null ? String(activeAqi) : '—';
-    const icon = L.divIcon({
-      className: 'airwise-map-marker',
-      html: `<div style="background:${category.hexColor};color:#ffffff;border:2px solid #ffffff;border-radius:9999px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;font-family:'IBM Plex Mono',monospace;font-weight:700;font-size:13px;box-shadow:0 2px 8px rgba(15,23,42,0.35);">${labelText}</div>`,
-      iconSize: [44, 44],
-      iconAnchor: [22, 22],
-    });
+    const icon = createAqiMarkerIcon(category.hexColor, labelText);
 
     if (markerRef.current) {
       markerRef.current.setLatLng(latLng);
@@ -80,11 +134,13 @@ export function AirQualityMapView() {
     }
 
     markerRef.current.bindPopup(
-      `<div style="font-family:sans-serif;min-width:170px;">
-        <strong>${location.name}</strong><br/>
-        <span>${aqiStandard === 'eu' ? 'European AQI' : 'US EPA AQI'}: <strong>${labelText}</strong> (${category.label})</span><br/>
-        <span style="font-size:11px;color:#475569;">PM2.5: ${current?.pollutants.pm2_5 ?? '—'} µg/m³</span>
-      </div>`
+      createMapPopupElement(
+        location.name,
+        aqiStandard === 'eu' ? 'European AQI' : 'US EPA AQI',
+        labelText,
+        category.label,
+        current?.pollutants.pm2_5
+      )
     );
 
     if (circleRef.current) {

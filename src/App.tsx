@@ -3,6 +3,7 @@ import { Suspense, lazy, useState } from 'react';
 import { AboutSourcesView } from './components/AboutSourcesView.tsx';
 import { AiHealthAssistantView } from './components/AiHealthAssistantView.tsx';
 import { DashboardView } from './components/DashboardView.tsx';
+import { ErrorBoundary } from './components/ErrorBoundary.tsx';
 import { HeaderBar } from './components/HeaderBar.tsx';
 import { LiveAirQualityView } from './components/LiveAirQualityView.tsx';
 import { Sidebar } from './components/Sidebar.tsx';
@@ -94,21 +95,23 @@ export function AppShell() {
             </div>
           )}
 
-          {activeSection === 'dashboard' && <DashboardView />}
-          {activeSection === 'live' && <LiveAirQualityView />}
-          {activeSection === 'map' && (
-            <Suspense fallback={<SectionLoadingFallback />}>
-              <AirQualityMapView />
-            </Suspense>
-          )}
-          {activeSection === 'forecast' && (
-            <Suspense fallback={<SectionLoadingFallback />}>
-              <ForecastTrendsView />
-            </Suspense>
-          )}
-          {activeSection === 'assistant' && <AiHealthAssistantView />}
-          {activeSection === 'alerts' && <SmartAlertsView />}
-          {activeSection === 'about' && <AboutSourcesView />}
+          <ErrorBoundary>
+            {activeSection === 'dashboard' && <DashboardView />}
+            {activeSection === 'live' && <LiveAirQualityView />}
+            {activeSection === 'map' && (
+              <Suspense fallback={<SectionLoadingFallback />}>
+                <AirQualityMapView />
+              </Suspense>
+            )}
+            {activeSection === 'forecast' && (
+              <Suspense fallback={<SectionLoadingFallback />}>
+                <ForecastTrendsView />
+              </Suspense>
+            )}
+            {activeSection === 'assistant' && <AiHealthAssistantView />}
+            {activeSection === 'alerts' && <SmartAlertsView />}
+            {activeSection === 'about' && <AboutSourcesView />}
+          </ErrorBoundary>
         </main>
       </div>
     </div>

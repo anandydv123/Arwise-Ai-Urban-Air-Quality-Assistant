@@ -27,18 +27,26 @@ import type {
   SmartAlertItem,
 } from '../types/airQuality.ts';
 import {
-  DEFAULT_ALERT_THRESHOLDS,
-  dispatchBrowserNotification,
   evaluateSmartAlerts,
   getBrowserNotificationPermission,
   isEmbeddedIframe,
   requestBrowserNotificationPermission,
+  dispatchBrowserNotification,
 } from '../utils/alerts.ts';
 import { DEFAULT_FALLBACK_LOCATION } from '../utils/aqi.ts';
 import {
   buildRuleBasedStructuredAdvice,
   generateRuleBasedRecommendation,
 } from '../utils/recommendations.ts';
+import {
+  type ThemeMode,
+  readStoredRecentLocations,
+  readStoredTheme,
+  readStoredThresholds,
+  saveRecentLocations,
+  saveTheme,
+  saveThresholds,
+} from '../utils/storage.ts';
 
 export type GeolocationStatus =
   | 'idle'
@@ -48,7 +56,7 @@ export type GeolocationStatus =
   | 'unsupported'
   | 'error';
 
-export type ThemeMode = 'light' | 'dark';
+export type { ThemeMode };
 
 interface AppContextValue {
   activeSection: AppSection;
@@ -87,57 +95,6 @@ interface AppContextValue {
   aiLoading: boolean;
   askAiAssistant: (question: string) => Promise<void>;
   clearChatHistory: () => void;
-}
-
-const RECENT_STORAGE_KEY = 'airwise_recent_locations_v1';
-const THEME_STORAGE_KEY = 'airwise_theme_v1';
-const THRESHOLDS_STORAGE_KEY = 'airwise_alert_thresholds_v1';
-
-function readStoredRecentLocations(): LocationInfo[] {
-  try {
-    const raw = window.localStorage.getItem(RECENT_STORAGE_KEY);
-    if (!raw) return [DEFAULT_FALLBACK_LOCATION];
-    const parsed = JSON.parse(raw) as LocationInfo[];
-    if (!Array.isArray(parsed) || parsed.length === 0) return [DEFAULT_FALLBACK_LOCATION];
-    return parsed.slice(0, 6);
-  } catch {
-    return [DEFAULT_FALLBACK_LOCATION];
-  }
-}
-
-function readStoredTheme(): ThemeMode {
-  try {
-    const saved = window.localStorage.getItem(THEME_STORAGE_KEY);
-    if (saved === 'dark' || saved === 'light') return saved;
-  } catch {
-    // ignore storage failures
-  }
-  return 'light';
-}
-
-function readStoredThresholds(): AlertThresholds {
-  try {
-    const raw = window.localStorage.getItem(THRESHOLDS_STORAGE_KEY);
-    if (!raw) return DEFAULT_ALERT_THRESHOLDS;
-    const parsed = JSON.parse(raw) as Partial<AlertThresholds>;
-    return {
-      usAqiThreshold:
-        typeof parsed.usAqiThreshold === 'number'
-          ? parsed.usAqiThreshold
-          : DEFAULT_ALERT_THRESHOLDS.usAqiThreshold,
-      pm25Threshold:
-        typeof parsed.pm25Threshold === 'number'
-          ? parsed.pm25Threshold
-          : DEFAULT_ALERT_THRESHOLDS.pm25Threshold,
-      spikeDeltaThreshold:
-        typeof parsed.spikeDeltaThreshold === 'number'
-          ? parsed.spikeDeltaThreshold
-          : DEFAULT_ALERT_THRESHOLDS.spikeDeltaThreshold,
-      browserNotificationsEnabled: Boolean(parsed.browserNotificationsEnabled),
-    };
-  } catch {
-    return DEFAULT_ALERT_THRESHOLDS;
-  }
 }
 
 const AppContext = createContext<AppContextValue | undefined>(undefined);
@@ -186,11 +143,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     } else {
       root.classList.remove('dark');
     }
-    try {
-      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
-    } catch {
-      // ignore
-    }
+    saveTheme(theme);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {
@@ -205,11 +158,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           Math.abs(item.longitude - loc.longitude) > 0.01
       );
       const next = [loc, ...filtered].slice(0, 6);
-      try {
-        window.localStorage.setItem(RECENT_STORAGE_KEY, JSON.stringify(next));
-      } catch {
-        // ignore
-      }
+      saveRecentLocations(next);
       return next;
     });
   }, []);
@@ -357,11 +306,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const updateAlertThresholds = useCallback((next: Partial<AlertThresholds>) => {
     setAlertThresholds((prev) => {
       const updated = { ...prev, ...next };
-      try {
-        window.localStorage.setItem(THRESHOLDS_STORAGE_KEY, JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
+      saveThresholds(updated);
       return updated;
     });
   }, []);
